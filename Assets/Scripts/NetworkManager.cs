@@ -23,13 +23,10 @@ public class NetworkManager : MonoBehaviour
         // Sending commands
         CONNECTION_REQUEST = 1,
 
-
-
         // Recieving commands
         RECV_NET_ID = 2,
         RECV_EXISTING_CLIENTS_IN_MATCH = 3,
         RECV_NEW_CLIENT = 4,
-
 
         // These events happen in run time because the clients are always moving, 
         // you need to update the server alot to get smooth player movement over a network!
@@ -44,14 +41,11 @@ public class NetworkManager : MonoBehaviour
         
     }
 
-
-
     [Serializable]
     public class Command
     {
         public NetworkCommand command;
     }
-
 
     [Serializable]
     public class InitialRecv : Command
@@ -90,8 +84,6 @@ public class NetworkManager : MonoBehaviour
     {
         public SubClient subclient;
     } 
-    
-
 
     [Serializable]
     public class PositionUpdate : Command
@@ -106,9 +98,7 @@ public class NetworkManager : MonoBehaviour
     [SerializeField]
     public class DropRequest : Command
     {
-        public int netID;
-    
-    
+        public int netID;  
     }
 
     // Note the different wording here:
@@ -118,13 +108,9 @@ public class NetworkManager : MonoBehaviour
         public int netID;
     }
 
-
     public List<GameObject> players;
  
-
     public GameObject playerPrefab;
-
-    public Dictionary<int, SubClient> connectedClients;
 
     private ConnectionReq m_connRequest;
     private InitialRecv m_initialRecv;
@@ -145,8 +131,6 @@ public class NetworkManager : MonoBehaviour
         m_positionUpdate.command = NetworkCommand.POSITION_UPDATE;
         m_positionUpdate.client = new SubClient();
 
-
-        connectedClients = new Dictionary<int, SubClient>();
         m_connRequest = new ConnectionReq();
         
         m_initialRecv = new InitialRecv();
@@ -166,7 +150,6 @@ public class NetworkManager : MonoBehaviour
         
 
         clientSocket.Client.Send(ASCIIEncoding.ASCII.GetBytes(JsonUtility.ToJson(m_connRequest)));
-
 
         clientSocket.Client.BeginReceive(recvBuffer, 0, recvBuffer.Length, SocketFlags.None, new AsyncCallback(OnServerMessageRecv), clientSocket);
 
@@ -188,16 +171,6 @@ public class NetworkManager : MonoBehaviour
         string str_data = ASCIIEncoding.ASCII.GetString(recData);
 
         print("Message from server: " + str_data);
-        //netMsg.text = str_data;
-        //netMsg.text += "\n";
-        //string msg = "";
-        //for (int i = 0; i < players.Count; i++)
-        //{
-        //    msg += "Player net ID: " + players[i].GetComponent<PlayerController>().NetIndex + ", position -> " + players[i].transform.position.ToString();
-        //    //print("Player net ID: " + players[i].GetComponent<PlayerController>().NetIndex + ", position -> " + players[i].transform.position.ToString());
-        //}
-        //
-        //netMsg.text += msg;
 
         // Recieving network ID for this client:
         Command netMessage = JsonUtility.FromJson<Command>(str_data);
@@ -214,24 +187,6 @@ public class NetworkManager : MonoBehaviour
             //print("Here 1");
             m_recvExistingClients = JsonUtility.FromJson<RecvExistingClients>(str_data);
 
-            //for(int i = 0; i < m_recvExistingClients.subclients.Length; i++)
-            //{
-            //    connectedClients.Add(m_recvExistingClients.subclients[i].netID, new SubClient());
-            //    connectedClients[connectedClients.Count - 1].netID = m_recvExistingClients.subclients[i].netID;
-            //}
-
-            //print("Here 2");
-            //int[] keys = new int[connectedClients.Count];
-            //connectedClients.Keys.CopyTo(keys, 0);
-            //
-            //SubClient[] clients = new SubClient[connectedClients.Count];
-            //connectedClients.Values.CopyTo(clients, 0);
-            //
-            //print("Here 3");
-            //for (int i = 0; i < keys.Length; i++)
-            //{
-            //    //print("Client ID: " + keys[i].ToString() + ", network ID: " + clients[i].netID.ToString());
-            //}
             connected1 = true;
 
             //print("Here 4");
@@ -240,19 +195,6 @@ public class NetworkManager : MonoBehaviour
         {
             m_recvNewClient = JsonUtility.FromJson<RecvNewClient>(str_data);
 
-            //connectedClients.Add(m_recvNewClient.subclient.netID, new SubClient());
-            //connectedClients[connectedClients.Count - 1].netID = m_recvNewClient.subclient.netID;
-
-            //int[] keys = new int[connectedClients.Count];
-            //connectedClients.Keys.CopyTo(keys, 0);
-            //
-            //SubClient[] clients = new SubClient[connectedClients.Count];
-            //connectedClients.Values.CopyTo(clients, 0);
-            //
-            //for (int i = 0; i < keys.Length; i++)
-            //{
-            //    //print("Client ID: " + keys[i].ToString() + ", network ID: " + clients[i].netID.ToString());
-            //}
             connected2 = true;
         }
         else if (netMessage.command == NetworkCommand.RECV_POSITION_UPDATE)
@@ -315,13 +257,6 @@ public class NetworkManager : MonoBehaviour
 
     void Update()
     {
-        //if (players.Count >= 1)
-        //{
-        //    //m_positionUpdate.command = NetworkCommand.POSITION_UPDATE;
-        //    
-        //
-        //}
-
         if (disconnect)
         {
             for (int i = 0; i < players.Count; i++)
