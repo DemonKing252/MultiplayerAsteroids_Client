@@ -5366,7 +5366,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1473820069
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7995,8 +7995,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   netProjectiles: []
+  otherProjectiles: []
   bulletPrefab: {fileID: 1039828638130534438, guid: 630cfb0c2a832f64db950cd488f426d4, type: 3}
   playerPrefab: {fileID: 6653113066094095336, guid: 872a1ffdcb7a5eb448a70eefe4f52165, type: 3}
+  asteroidPrefab: {fileID: 9089001722903409152, guid: 216ce5e780f22354091ade5b0d4c01dc, type: 3}
   clientHandShake:
     commandSignifier: 0
     id: 0
@@ -8012,6 +8014,29 @@ MonoBehaviour:
   dropClient:
     commandSignifier: 0
     id: 0
+  spawnNetProj:
+    commandSignifier: 0
+    playerId: 0
+    bullet:
+      id: -1
+      pos:
+        x: 0.00
+        y: 0.00
+      vel:
+        x: 0.00
+        y: 0.00
+  delProj:
+    commandSignifier: 0
+    netId: 0
+    playerId: 0
+    bullet:
+      id: -1
+      pos:
+        x: 0.00
+        y: 0.00
+      vel:
+        x: 0.00
+        y: 0.00
   match:
     commandSignifier: 0
     message: 

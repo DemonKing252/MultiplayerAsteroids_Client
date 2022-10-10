@@ -41,11 +41,6 @@ public class NetClient : MonoBehaviour
             if (Input.GetKeyUp(KeyCode.Space))
             {
                 Vector3 worldP = transform.position;
-                var bulletGO = Instantiate(netManager.bulletPrefab, worldP, Quaternion.identity);
-                var projComp = bulletGO.GetComponent<NetworkedProjectileComponent>();
-                projComp.SetImpulse(new Vector2(0f, 10f));
-                netManager.netProjectiles.Add(projComp);
-
                 var networkedBullet = new ClientToServer.SpawnNetProjectile();
                 networkedBullet.commandSignifier = NetUtils.CommandSignifiers.TO_SERVER_SPAWN_BULLET;
                 networkedBullet.netId = netManager.NetID;
@@ -55,24 +50,6 @@ public class NetClient : MonoBehaviour
                 netManager.SendToServer(networkedBullet);
             }
             
-            //{
-            //    var bullet = Instantiate(netManager.bulletPrefab, transform.position, Quaternion.identity);
-            //    var projComp = bullet.GetComponent<NetworkedProjectileComponent>();
-            //    projComp.SetImpulse(new Vector2(0f, 10f));
-            //
-            //    var networkedBullet = new ClientToServer.SpawnProjectile();
-            //
-            //    networkedBullet.commandSignifier = NetUtils.CommandSignifiers.TO_SERVER_SPAWN_BULLET;
-            //    Vector3 myPos = transform.position;
-            //    networkedBullet.pos = new NetUtils.SVector2(myPos.x, myPos.y);
-            //    networkedBullet.vel = new NetUtils.SVector2(0f, 10f);
-            //    netManager.SendToServer(networkedBullet);
-            //
-            //    netManager.LatestProjectile = new NetProjectile();
-            //    netManager.LatestProjectile.projComp = projComp;
-            //
-            //}
-
         }
     }
 }

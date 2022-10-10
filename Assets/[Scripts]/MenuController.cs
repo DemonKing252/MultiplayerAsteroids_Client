@@ -80,7 +80,7 @@ public class MenuController : MonoBehaviour
         start_matchmaking.onClick.AddListener( () => OnStartMatchmaking() );
         readyUp.onValueChanged.AddListener( (value) => OnReadyUp(value) );
         hostIPField.onValueChanged.AddListener( (ip) => OnHostIPChanged(ip) );
-        hostPortField.onValueChanged.AddListener( (port) => OnHostIPChanged(port) );
+        hostPortField.onValueChanged.AddListener( (port) => OnHostPortChanged(port) );
 
         ChangeGameState(GameStates.MainMenu);
     }
