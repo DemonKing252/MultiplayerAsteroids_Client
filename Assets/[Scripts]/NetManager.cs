@@ -12,7 +12,6 @@ namespace NetUtils
         TOSERVER_HANDSHAKE = 0,     // Tell the server that we joined, add our netid to the clients dictionary
         TOCLIENT_HANDSHAKE = 1,     // Recieve a copy of all clients currently in the session, spawn them all in
         START_MATCHMAKING = 2,
-        //ADD_NEW_CLIENT = 3,          // Client that just joined
 
         TO_SERVER_POS_UPDATE = 4,
         TO_CLIENT_POS_UPDATE = 5,
@@ -654,49 +653,49 @@ public class NetManager : MonoBehaviour
         {
             Debug.Log("Recv delete asteroid cmd signifier at index: " + delNetAsteroid.asteroid.id);
             // Delete our projectile
-            foreach (var a in ourAsteroids)
-            {
-                if (delNetAsteroid.playerId == a.NetID)
-                {
-                    Destroy(a.gameObject);
-                    ourAsteroids.Remove(a);
-                    break;
-                }
-            }
-            foreach (var a in otherAsteroids)
-            {
-                if (delNetAsteroid.playerId == a.NetID)
-                {
-                    Destroy(a.gameObject);
-                    otherAsteroids.Remove(a);
-                    break;
-                }
-            }
-            //if (PlayerID == delNetAsteroid.playerId)
+            //foreach (var a in ourAsteroids)
             //{
-            //    foreach (var a in ourAsteroids)
+            //    if (delNetAsteroid.playerId == a.NetID)
             //    {
-            //        if (delNetAsteroid.playerId == a.NetID)
-            //        {
-            //            Destroy(a.gameObject);
-            //            ourAsteroids.Remove(a);
-            //            break;
-            //        }
+            //        Destroy(a.gameObject);
+            //        ourAsteroids.Remove(a);
+            //        break;
             //    }
             //}
-            //// Delete other projectile
-            //else
+            //foreach (var a in otherAsteroids)
             //{
-            //    foreach (var a in otherAsteroids)
+            //    if (delNetAsteroid.playerId == a.NetID)
             //    {
-            //        if (delNetAsteroid.playerId == a.NetID)
-            //        {
-            //            Destroy(a.gameObject);
-            //            otherAsteroids.Remove(a);
-            //            break;
-            //        }
+            //        Destroy(a.gameObject);
+            //        otherAsteroids.Remove(a);
+            //        break;
             //    }
             //}
+            if (PlayerID == delNetAsteroid.playerId)
+            {
+                foreach (var a in ourAsteroids)
+                {
+                    if (delNetAsteroid.netId == a.NetID)
+                    {
+                        Destroy(a.gameObject);
+                        ourAsteroids.Remove(a);
+                        break;
+                    }
+                }
+            }
+            // Delete other projectile
+            else
+            {
+                foreach (var a in otherAsteroids)
+                {
+                    if (delNetAsteroid.netId == a.NetID)
+                    {
+                        Destroy(a.gameObject);
+                        otherAsteroids.Remove(a);
+                        break;
+                    }
+                }
+            }
             
         
             delete_asteroid = false;
