@@ -34,6 +34,12 @@ namespace NetUtils
         MATCH_MADE = 100,
         REROLL_MATCH = 101
     }
+    public enum DeletionFlags
+    {
+        BY_PLAYER = 0,
+        BY_CLIENT = 1
+    }
+
 
     [Serializable]
     public class NetworkHeader
@@ -141,6 +147,7 @@ namespace ClientToServer
     {
         public int netId;
         public int playerId;
+        public NetUtils.DeletionFlags deletionFlags;
         public NetUtils.SAsteroid asteroid;
     }
 
@@ -204,6 +211,7 @@ namespace ServerToClient
     {
         public int netId;
         public int playerId;
+        public NetUtils.DeletionFlags deletionFlags;
         public NetUtils.SAsteroid asteroid;
     }
 }
@@ -311,7 +319,6 @@ public class NetManager : MonoBehaviour
         MenuController.Instance.ChangeGameState(GameStates.WaitingForMatch);
     }
 
-
     private void OnMessageRecv(IAsyncResult result)
     {
         UdpClient sock = result.AsyncState as UdpClient;
@@ -412,6 +419,21 @@ public class NetManager : MonoBehaviour
         SendToServer(positionUpdate);
     }
 
+    public void DeleteAsteroidOnNetwork(NetAsteroid netAsteroidComp)
+    {
+        var delNetAsteroid = new ClientToServer.DeleteNetAsteroid();
+        delNetAsteroid.commandSignifier = NetUtils.CommandSignifiers.TO_SERVER_DEL_ASTEROID;
+        delNetAsteroid.playerId = PlayerID;
+        delNetAsteroid.netId = NetID;
+        delNetAsteroid.deletionFlags = NetUtils.DeletionFlags.BY_CLIENT;
+        delNetAsteroid.asteroid = new NetUtils.SAsteroid();
+        delNetAsteroid.asteroid.id = netAsteroidComp.NetID;
+        delNetAsteroid.asteroid.pos = new NetUtils.SVector2(netAsteroidComp.transform.position.x, netAsteroidComp.transform.position.y);
+        delNetAsteroid.asteroid.vel = new NetUtils.SVector2(netAsteroidComp.Vel.x, netAsteroidComp.Vel.y);
+
+        SendToServer(delNetAsteroid);
+    }
+
     public void DeleteBulletsAndAsteroidsOutOfBounds()
     {
         // Only if it exists in our netProjectiles array, then delete it.
@@ -430,7 +452,7 @@ public class NetManager : MonoBehaviour
                 deleteNetBullet.commandSignifier = NetUtils.CommandSignifiers.TO_SERVER_DELETE_BULLET;
                 deleteNetBullet.playerId = PlayerID;
                 deleteNetBullet.netId = NetID;
-                
+
                 deleteNetBullet.bullet = new NetUtils.SProjectile();
                 deleteNetBullet.bullet.id = b.NetID;
                 deleteNetBullet.bullet.pos = new NetUtils.SVector2(b.transform.position.x, b.transform.position.y);
@@ -451,6 +473,7 @@ public class NetManager : MonoBehaviour
                 delNetAsteroid.commandSignifier = NetUtils.CommandSignifiers.TO_SERVER_DEL_ASTEROID;
                 delNetAsteroid.playerId = PlayerID;
                 delNetAsteroid.netId = NetID;
+                delNetAsteroid.deletionFlags = NetUtils.DeletionFlags.BY_PLAYER;
                 delNetAsteroid.asteroid = new NetUtils.SAsteroid();
                 delNetAsteroid.asteroid.id = a.NetID;
                 delNetAsteroid.asteroid.pos = new NetUtils.SVector2(a.transform.position.x, a.transform.position.y);
@@ -557,7 +580,8 @@ public class NetManager : MonoBehaviour
                 var projComp = bulletGO.GetComponent<NetworkedProjectileComponent>();
                 projComp.SetImpulse(new Vector2(0f, 10f));
                 projComp.NetID = spawnNetProj.bullet.id;
-
+                projComp.clientOwner = true;    // This bullet is owned by THIS client
+                projComp.netMan = this;
                 ourProjectiles.Add(projComp);
             }
             // This is a bullet that the other client shot, spawn it in a seperate container so that we can keep track of it
@@ -568,6 +592,8 @@ public class NetManager : MonoBehaviour
                 var projComp = bulletGO.GetComponent<NetworkedProjectileComponent>();
                 projComp.SetImpulse(new Vector2(0f, 10f));
                 projComp.NetID = spawnNetProj.bullet.id;
+                projComp.clientOwner = false;    // This bullet is owned by a DIFFERENT client
+                projComp.netMan = this;
                 otherProjectiles.Add(projComp);
             }
 
@@ -623,11 +649,6 @@ public class NetManager : MonoBehaviour
         netAsteroid.playerId = PlayerID;
 
         SendToServer(netAsteroid);
-
-
-        //worldP.X = 0f;
-        //float x = worldP.X; // UnityEngine.Random.Range(0f, 3f);
-
     }
     void SpawnAndDeleteNetAsteroids()
     {
@@ -653,25 +674,35 @@ public class NetManager : MonoBehaviour
         {
             Debug.Log("Recv delete asteroid cmd signifier at index: " + delNetAsteroid.asteroid.id);
             // Delete our projectile
-            //foreach (var a in ourAsteroids)
-            //{
-            //    if (delNetAsteroid.playerId == a.NetID)
-            //    {
-            //        Destroy(a.gameObject);
-            //        ourAsteroids.Remove(a);
-            //        break;
-            //    }
-            //}
-            //foreach (var a in otherAsteroids)
-            //{
-            //    if (delNetAsteroid.playerId == a.NetID)
-            //    {
-            //        Destroy(a.gameObject);
-            //        otherAsteroids.Remove(a);
-            //        break;
-            //    }
-            //}
-            if (PlayerID == delNetAsteroid.playerId)
+            if (delNetAsteroid.deletionFlags == NetUtils.DeletionFlags.BY_PLAYER)
+            {
+                if (PlayerID == delNetAsteroid.playerId)
+                {
+                    foreach (var a in ourAsteroids)
+                    {
+                        if (delNetAsteroid.netId == a.NetID)
+                        {
+                            Destroy(a.gameObject);
+                            ourAsteroids.Remove(a);
+                            break;
+                        }
+                    }
+                }
+                // Delete other projectile
+                else
+                {
+                    foreach (var a in otherAsteroids)
+                    {
+                        if (delNetAsteroid.netId == a.NetID)
+                        {
+                            Destroy(a.gameObject);
+                            otherAsteroids.Remove(a);
+                            break;
+                        }
+                    }
+                }
+            }
+            else if (delNetAsteroid.deletionFlags == NetUtils.DeletionFlags.BY_CLIENT)
             {
                 foreach (var a in ourAsteroids)
                 {
@@ -682,10 +713,6 @@ public class NetManager : MonoBehaviour
                         break;
                     }
                 }
-            }
-            // Delete other projectile
-            else
-            {
                 foreach (var a in otherAsteroids)
                 {
                     if (delNetAsteroid.netId == a.NetID)
@@ -696,6 +723,7 @@ public class NetManager : MonoBehaviour
                     }
                 }
             }
+            
             
         
             delete_asteroid = false;

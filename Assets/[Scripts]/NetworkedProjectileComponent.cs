@@ -12,6 +12,9 @@ public class NetworkedProjectileComponent : MonoBehaviour
     public NetManager netMan;
     public int NetID;
 
+    public bool clientOwner = false;
+
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -20,5 +23,13 @@ public class NetworkedProjectileComponent : MonoBehaviour
     public void SetImpulse(Vector3 vel)
     {
         rb.velocity = vel;
+    }
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        // If owned by this client, delete the bullet on the Network.
+        if (clientOwner && collision.gameObject.CompareTag("Asteroid"))
+        {
+            netMan.DeleteAsteroidOnNetwork(collision.GetComponent<NetAsteroid>());
+        }
     }
 }
