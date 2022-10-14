@@ -8,7 +8,7 @@ public enum GameStates
     MainMenu,
     SinglePlayer,
     Multiplayer,
-    //ConnectToHost,
+    UserAuthentication,
     Matchmaking,
     WaitingForMatch,
     MatchmakingGame
@@ -29,25 +29,32 @@ public class MenuController : MonoBehaviour
     [SerializeField] private Toggle readyUp;    // maybe
 
 
+    [SerializeField] private Button createAccountBtn;
+    [SerializeField] private Button loginBtn;
+
     // Canvases
     [SerializeField] private Canvas inGameUI;
     [SerializeField] private Canvas mainMenu;
     [SerializeField] private Canvas connectToHost;
     [SerializeField] private Canvas matchmaking;
     [SerializeField] private Canvas waitingForMatch;
+    [SerializeField] private Canvas userAuthenticationMenu;
 
 
     // Extras: text boxes for connect to host
     [SerializeField] private TMPro.TMP_InputField hostIPField;
     [SerializeField] private TMPro.TMP_InputField hostPortField;
+    [SerializeField] private TMPro.TMP_InputField userNameField;
+    [SerializeField] private TMPro.TMP_InputField passwordField;
     [SerializeField] private TMPro.TMP_Text connectionTimedOutText;
     [SerializeField] private TMPro.TMP_Text clientLeftMatchWarningText;
+    [SerializeField] private TMPro.TMP_Text server_response_status_text;
     public TMPro.TMP_Text ClientLeftMatchWarningText => clientLeftMatchWarningText;
 
     private GameStates gameState = GameStates.MainMenu;
     public GameStates GameState => gameState;
 
-    
+    private string user, password;
     private static MenuController instance = null;
     public static MenuController Instance => instance;
 
@@ -56,11 +63,15 @@ public class MenuController : MonoBehaviour
     public delegate void OnHostIPChangedEvent(string ip);
     public delegate void OnHostPortChangedEvent(string port);
     public delegate void OnStartmatchmakingEvent();
+    public delegate void OnCreateAccountEvent(string user, string pass);
+    public delegate void OnLoginEvent(string user, string pass);
 
     public event OnReadyUpEvent onConnectToHost;
     public event OnHostIPChangedEvent onHostIPChanged;
     public event OnHostPortChangedEvent onHostPortChanged;
     public event OnStartmatchmakingEvent onStartMatchmaking;
+    public event OnCreateAccountEvent onCreateAccount;
+    public event OnLoginEvent onLogin;
 
     private void Awake()
     {
@@ -81,6 +92,12 @@ public class MenuController : MonoBehaviour
         readyUp.onValueChanged.AddListener( (value) => OnReadyUp(value) );
         hostIPField.onValueChanged.AddListener( (ip) => OnHostIPChanged(ip) );
         hostPortField.onValueChanged.AddListener( (port) => OnHostPortChanged(port) );
+
+        userNameField.onValueChanged.AddListener( (user) => OnUsernameChanged(user) );
+        passwordField.onValueChanged.AddListener( (pass) => OnPasswordChanged(pass) );
+
+        createAccountBtn.onClick.AddListener(() => OnCreateAccount());
+        loginBtn.onClick.AddListener(() => OnLogin());
 
         ChangeGameState(GameStates.MainMenu);
     }
@@ -124,6 +141,29 @@ public class MenuController : MonoBehaviour
     {
         onHostPortChanged?.Invoke(port);
     }
+
+    public void OnUsernameChanged(string user)
+    {
+        this.user = user;
+    }
+    public void OnPasswordChanged(string pass)
+    {
+        this.password = pass;
+    }
+    public void OnCreateAccount()
+    {
+        onCreateAccount?.Invoke(user, password);
+    }
+    public void OnLogin()
+    {
+        onLogin?.Invoke(user, password);
+    }
+    public void SetServerResponseStatus(string status, Color col)
+    {
+        server_response_status_text.text = "<color=" + (col == Color.red ? "red" : "green") + ">" + status + "</color>";
+
+    }
+
     public void OnStartMatchmaking()
     {
         clientLeftMatchWarningText.gameObject.SetActive(false);
@@ -141,12 +181,14 @@ public class MenuController : MonoBehaviour
         connectToHost.gameObject.SetActive(false);
         matchmaking.gameObject.SetActive(false);
         waitingForMatch.gameObject.SetActive(false);
+        userAuthenticationMenu.gameObject.SetActive(false);
 
         Canvas turnOn = state switch
         {
             GameStates.MainMenu        => mainMenu,
             GameStates.SinglePlayer    => inGameUI,
             GameStates.Multiplayer     => connectToHost,
+            GameStates.UserAuthentication => userAuthenticationMenu,
             GameStates.Matchmaking     => matchmaking,
             GameStates.WaitingForMatch => waitingForMatch,
             GameStates.MatchmakingGame => inGameUI,

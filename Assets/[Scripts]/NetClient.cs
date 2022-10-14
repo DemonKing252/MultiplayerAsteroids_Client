@@ -33,7 +33,7 @@ public class NetClient : MonoBehaviour
             posPrev = posNow;
             posNow = transform.position;
             float magnitude = (posNow - posPrev).magnitude;
-            if (magnitude >= Mathf.Epsilon/* || netManager.netProjectiles.Count > 0*/)
+            if (magnitude >= Mathf.Epsilon)
             {
                 netManager.UpdatePositionOnNetwork(transform.position);
             }

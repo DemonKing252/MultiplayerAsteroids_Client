@@ -31,14 +31,35 @@ namespace NetUtils
         TO_SERVER_DEL_ASTEROID = 14,
         TO_CLIENT_DEL_ASTEROID = 15,
 
+        TO_SERVER_USER_AUTHENTICATE = 50,
+        TO_SERVER_LOGIN          = 51,
+        TO_CLIENT_CREATE_ACCOUNT_RESPONSE = 52,
+
+
         MATCH_MADE = 100,
-        REROLL_MATCH = 101
+        REROLL_MATCH = 101,
     }
     public enum DeletionFlags
     {
         BY_PLAYER = 0,
         BY_CLIENT = 1
     }
+    public enum AccountResponse
+    {
+        CREATE_ACCOUNT_USER_TAKEN = 0,
+        CREATE_ACCOUNT_SUCCESS = 1,
+        
+        WRONG_USER = 2,
+        WRONG_PASS = 3,
+        LOGIN_SUCCESS = 4
+    
+    }
+    public enum UserAuthenticate
+    {
+        CREATE_ACCOUNT = 0,
+        LOGIN = 1
+    }
+
 
 
     [Serializable]
@@ -151,6 +172,15 @@ namespace ClientToServer
         public NetUtils.SAsteroid asteroid;
     }
 
+    [Serializable]
+    public class UserAuthenticationCommand : NetUtils.NetworkHeader
+    {
+        public NetUtils.UserAuthenticate authen;
+        public string user;
+        public string pass;
+    }
+
+
 }
 namespace ServerToClient
 {
@@ -214,6 +244,13 @@ namespace ServerToClient
         public NetUtils.DeletionFlags deletionFlags;
         public NetUtils.SAsteroid asteroid;
     }
+    [Serializable]
+    public class CreateAccountResponse : NetUtils.NetworkHeader
+    {
+        public NetUtils.AccountResponse response;
+        public string user;
+        public string pass;
+    }
 }
 
 
@@ -242,6 +279,7 @@ public class NetManager : MonoBehaviour
     public ServerToClient.Matchmade match;
     public ServerToClient.SpawnNetAsteroid spawnNetAsteroid;
     public ServerToClient.DeleteNetAsteroid delNetAsteroid;
+    public ServerToClient.CreateAccountResponse createAccountResponse;
 
     public int NetID = -1;
     public int PlayerID = -1;
@@ -257,6 +295,8 @@ public class NetManager : MonoBehaviour
     private bool delete_bullet = false;
     private bool spawn_asteroid = false;
     private bool delete_asteroid = false;
+    private bool user_authen_resp = false;
+    private bool login_Response = false;
 
     public string ec2_ip = "52.14.46.199";
     public string port = "12345";
@@ -273,6 +313,8 @@ public class NetManager : MonoBehaviour
         MenuController.Instance.onHostIPChanged += OnIPChanged;
         MenuController.Instance.onHostPortChanged += OnPortChanged;
         MenuController.Instance.onStartMatchmaking += OnStartMatchmaking;
+        MenuController.Instance.onCreateAccount += OnCreateAccount;
+        MenuController.Instance.onLogin += OnLogin;
     }
     public void InitUDPClient()
     {
@@ -318,6 +360,28 @@ public class NetManager : MonoBehaviour
         SendToServer(startMatchmaking);
         MenuController.Instance.ChangeGameState(GameStates.WaitingForMatch);
     }
+    public void OnCreateAccount(string user, string pass)
+    {
+        Debug.Log("Created account with credentials, user: " + user + ", pass: " + pass);
+        var createAccount = new ClientToServer.UserAuthenticationCommand();
+        createAccount.commandSignifier = NetUtils.CommandSignifiers.TO_SERVER_USER_AUTHENTICATE;
+        createAccount.authen = NetUtils.UserAuthenticate.CREATE_ACCOUNT;
+        createAccount.user = user;
+        createAccount.pass = pass;
+        SendToServer(createAccount);
+
+    }
+    public void OnLogin(string user, string pass)
+    {
+        Debug.Log("Login with credentials, user: " + user + ", pass: " + pass);
+        var logintoAccount = new ClientToServer.UserAuthenticationCommand();
+        logintoAccount.commandSignifier = NetUtils.CommandSignifiers.TO_SERVER_USER_AUTHENTICATE;
+        logintoAccount.authen = NetUtils.UserAuthenticate.LOGIN;
+        logintoAccount.user = user;
+        logintoAccount.pass = pass;
+        SendToServer(logintoAccount);
+    }
+
 
     private void OnMessageRecv(IAsyncResult result)
     {
@@ -366,6 +430,10 @@ public class NetManager : MonoBehaviour
             case NetUtils.CommandSignifiers.TO_CLIENT_DEL_ASTEROID:
                 delNetAsteroid = LoadJson<ServerToClient.DeleteNetAsteroid>(bytes);
                 delete_asteroid = true;
+                break;
+            case NetUtils.CommandSignifiers.TO_CLIENT_CREATE_ACCOUNT_RESPONSE:
+                createAccountResponse = LoadJson<ServerToClient.CreateAccountResponse>(bytes);                
+                user_authen_resp = true;
                 break;
         }
 
@@ -490,6 +558,8 @@ public class NetManager : MonoBehaviour
         MenuController.Instance.onHostIPChanged -= OnIPChanged;
         MenuController.Instance.onHostPortChanged -= OnPortChanged;
         MenuController.Instance.onStartMatchmaking -= OnStartMatchmaking;
+        MenuController.Instance.onCreateAccount -= OnCreateAccount;
+        MenuController.Instance.onLogin -= OnLogin;
 
         // Need a fix for this too
         if (!connected)
@@ -507,7 +577,7 @@ public class NetManager : MonoBehaviour
     {
         if (!alreadyConnected)
         {
-            MenuController.Instance.ChangeGameState(GameStates.Matchmaking);
+            MenuController.Instance.ChangeGameState(GameStates.UserAuthentication);
             alreadyConnected = true;
         }
         if (match_made)
@@ -729,7 +799,25 @@ public class NetManager : MonoBehaviour
             delete_asteroid = false;
         }
     }
+    private void AccountHandling()
+    {
+        if (user_authen_resp)
+        {
+            Debug.Log("Server response: " + createAccountResponse.response);
 
+            if (createAccountResponse.response == NetUtils.AccountResponse.CREATE_ACCOUNT_SUCCESS)
+                MenuController.Instance.SetServerResponseStatus("Server response: Created account successfully!", Color.green);
+            else if (createAccountResponse.response == NetUtils.AccountResponse.CREATE_ACCOUNT_USER_TAKEN)
+                MenuController.Instance.SetServerResponseStatus("Server response: That username is already taken!", Color.red);
+            else if (createAccountResponse.response == NetUtils.AccountResponse.WRONG_USER)
+                MenuController.Instance.SetServerResponseStatus("Server response: Wrong username!", Color.red);
+            else if (createAccountResponse.response == NetUtils.AccountResponse.WRONG_PASS)
+                MenuController.Instance.SetServerResponseStatus("Server response: Wrong password!", Color.red);
+            else if (createAccountResponse.response == NetUtils.AccountResponse.LOGIN_SUCCESS)
+                MenuController.Instance.ChangeGameState(GameStates.Matchmaking);
+            user_authen_resp = false;
+        }
+    }
 
     // Update is called once per frame
     void Update()
@@ -740,5 +828,6 @@ public class NetManager : MonoBehaviour
         SpawnAndDeleteNetBullets();
         DeleteBulletsAndAsteroidsOutOfBounds();
         SpawnAndDeleteNetAsteroids();
+        AccountHandling();
     }
 }
