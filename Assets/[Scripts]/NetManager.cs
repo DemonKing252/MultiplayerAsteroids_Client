@@ -51,13 +51,14 @@ namespace NetUtils
         
         WRONG_USER = 2,
         WRONG_PASS = 3,
-        LOGIN_SUCCESS = 4
+        LOGIN_SUCCESS = 4,
+        USER_ACTIVE_ON_SERVER = 5
     
     }
     public enum UserAuthenticate
     {
         CREATE_ACCOUNT = 0,
-        LOGIN = 1
+        LOGIN = 1,
     }
 
 
@@ -138,6 +139,7 @@ namespace ClientToServer
     {
         public int netId;
         public int playerId;
+        public string user;
     }
     [Serializable]
     public class SpawnNetProjectile : NetUtils.NetworkHeader
@@ -300,6 +302,7 @@ public class NetManager : MonoBehaviour
 
     public string ec2_ip = "52.14.46.199";
     public string port = "12345";
+    public string user_name = "";   // waiting on server response
     
     public bool ec2_connect = true;
     
@@ -561,7 +564,7 @@ public class NetManager : MonoBehaviour
         MenuController.Instance.onCreateAccount -= OnCreateAccount;
         MenuController.Instance.onLogin -= OnLogin;
 
-        // Need a fix for this too
+        // If playing singleplayer, were not shutting down the network
         if (!connected)
             return;
 
@@ -569,6 +572,7 @@ public class NetManager : MonoBehaviour
         drop.commandSignifier = NetUtils.CommandSignifiers.TO_SERVER_DROP_CLIENT;
         drop.netId = NetID;
         drop.playerId = PlayerID;
+        drop.user = user_name;
         SendToServer(drop);
     }
 
@@ -813,8 +817,13 @@ public class NetManager : MonoBehaviour
                 MenuController.Instance.SetServerResponseStatus("Server response: Wrong username!", Color.red);
             else if (createAccountResponse.response == NetUtils.AccountResponse.WRONG_PASS)
                 MenuController.Instance.SetServerResponseStatus("Server response: Wrong password!", Color.red);
+            else if (createAccountResponse.response == NetUtils.AccountResponse.USER_ACTIVE_ON_SERVER)
+                MenuController.Instance.SetServerResponseStatus("Server response: User already logged in!", Color.red);
             else if (createAccountResponse.response == NetUtils.AccountResponse.LOGIN_SUCCESS)
-                MenuController.Instance.ChangeGameState(GameStates.Matchmaking);
+            {
+                user_name = createAccountResponse.user;
+                MenuController.Instance.ChangeGameState(GameStates.Matchmaking);          
+            }
             user_authen_resp = false;
         }
     }
