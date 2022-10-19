@@ -258,20 +258,23 @@ namespace ServerToClient
 
 public class NetManager : MonoBehaviour
 {
-    // Projectiles that are owned by this client
-    public List<NetworkedProjectileComponent> ourProjectiles = new List<NetworkedProjectileComponent>();
+    // Networked gameobjects
+    private NetClient player1 = null;
+    private NetClient player2 = null;
 
-    // Projectiles that belong to other clients.
-    public List<NetworkedProjectileComponent> otherProjectiles = new List<NetworkedProjectileComponent>();
+    // int represents Network ID
+    private Dictionary<int, NetworkedProjectileComponent> ourProjectiles = new Dictionary<int, NetworkedProjectileComponent>();
+    private Dictionary<int, NetworkedProjectileComponent> otherProjectiles = new Dictionary<int, NetworkedProjectileComponent>();
+    private Dictionary<int, NetAsteroid> ourAsteroids = new Dictionary<int, NetAsteroid>();
+    private Dictionary<int, NetAsteroid> otherAsteroids = new Dictionary<int, NetAsteroid>();
 
-    public List<NetAsteroid> ourAsteroids = new List<NetAsteroid>();
-    public List<NetAsteroid> otherAsteroids = new List<NetAsteroid>();
-
+    // Prefabs
     public GameObject bulletPrefab;
     public GameObject playerPrefab;
     public GameObject asteroidPrefab;
     public UdpClient client;
     
+    // Server Responses as objects (from json)
     public ServerToClient.Handshake clientHandShake;
     public ServerToClient.AddNewClient addClients;
     public ServerToClient.PositionUpdate posUpdate;
@@ -282,12 +285,11 @@ public class NetManager : MonoBehaviour
     public ServerToClient.SpawnNetAsteroid spawnNetAsteroid;
     public ServerToClient.DeleteNetAsteroid delNetAsteroid;
     public ServerToClient.CreateAccountResponse createAccountResponse;
+    public ClientToServer.PositionUpdate positionUpdate;
 
+    // Matchmaking and Client Id's
     public int NetID = -1;
     public int PlayerID = -1;
-
-    [SerializeField] private NetClient player1 = null;
-    [SerializeField] private NetClient player2 = null;
 
     // Async task handling
     private bool match_made = false;
@@ -300,13 +302,12 @@ public class NetManager : MonoBehaviour
     private bool user_authen_resp = false;
     private bool login_Response = false;
 
+    // Server ip and port
     public string ec2_ip = "52.14.46.199";
     public string port = "12345";
+    
+    public bool ec2_connect = true; // for debugging, easier to test locally when debugging code
     public string user_name = "";   // waiting on server response
-    
-    public bool ec2_connect = true;
-    
-    public ClientToServer.PositionUpdate positionUpdate;
     private bool connected = false;
     private bool alreadyConnected = true;
     // Start is called before the first frame update
@@ -398,7 +399,6 @@ public class NetManager : MonoBehaviour
         switch (clientmsg.commandSignifier) {
 
             case NetUtils.CommandSignifiers.TOCLIENT_HANDSHAKE:
-                Debug.Log("Connected.");
                 clientHandShake = LoadJson<ServerToClient.Handshake>(bytes);
                 NetID = clientHandShake.id;
                 connected = true;
@@ -501,14 +501,13 @@ public class NetManager : MonoBehaviour
         delNetAsteroid.asteroid.id = netAsteroidComp.NetID;
         delNetAsteroid.asteroid.pos = new NetUtils.SVector2(netAsteroidComp.transform.position.x, netAsteroidComp.transform.position.y);
         delNetAsteroid.asteroid.vel = new NetUtils.SVector2(netAsteroidComp.Vel.x, netAsteroidComp.Vel.y);
-
         SendToServer(delNetAsteroid);
     }
 
     public void DeleteBulletsAndAsteroidsOutOfBounds()
     {
         // Only if it exists in our netProjectiles array, then delete it.
-        foreach(var b in ourProjectiles)
+        foreach(var b in ourProjectiles.Values)
         {
             Vector3 absolutePos = b.transform.position;
             absolutePos.x = Mathf.Abs(absolutePos.x);
@@ -516,14 +515,10 @@ public class NetManager : MonoBehaviour
 
             if (absolutePos.x > 10f || absolutePos.y > 10f)
             {
-                Debug.Log("Deleting bullet");
-                // This bullet is out of bounds
-                // Delete it on the network.
                 var deleteNetBullet = new ClientToServer.DeleteNetProjectile();
                 deleteNetBullet.commandSignifier = NetUtils.CommandSignifiers.TO_SERVER_DELETE_BULLET;
                 deleteNetBullet.playerId = PlayerID;
                 deleteNetBullet.netId = NetID;
-
                 deleteNetBullet.bullet = new NetUtils.SProjectile();
                 deleteNetBullet.bullet.id = b.NetID;
                 deleteNetBullet.bullet.pos = new NetUtils.SVector2(b.transform.position.x, b.transform.position.y);
@@ -531,7 +526,7 @@ public class NetManager : MonoBehaviour
                 SendToServer(deleteNetBullet);
             }
         }
-        foreach (var a in ourAsteroids)
+        foreach (var a in ourAsteroids.Values)
         {
 
             Vector3 absolutePos = a.transform.position;
@@ -539,7 +534,6 @@ public class NetManager : MonoBehaviour
             absolutePos.y = Mathf.Abs(absolutePos.y);
             if (absolutePos.x > 11f || absolutePos.y > 11f)
             {
-                // Code here.
                 var delNetAsteroid = new ClientToServer.DeleteNetAsteroid();
                 delNetAsteroid.commandSignifier = NetUtils.CommandSignifiers.TO_SERVER_DEL_ASTEROID;
                 delNetAsteroid.playerId = PlayerID;
@@ -549,7 +543,6 @@ public class NetManager : MonoBehaviour
                 delNetAsteroid.asteroid.id = a.NetID;
                 delNetAsteroid.asteroid.pos = new NetUtils.SVector2(a.transform.position.x, a.transform.position.y);
                 delNetAsteroid.asteroid.vel = new NetUtils.SVector2(a.Vel.x, a.Vel.y);
-
                 SendToServer(delNetAsteroid);
             }
         }
@@ -648,7 +641,6 @@ public class NetManager : MonoBehaviour
             // This is our bullet, just assign the id to it
             if (PlayerID == spawnNetProj.playerId)
             {
-
                 Vector3 worldP = new Vector3(spawnNetProj.bullet.pos.X, spawnNetProj.bullet.pos.Y);
                 var bulletGO = Instantiate(bulletPrefab, worldP, Quaternion.identity);
                 var projComp = bulletGO.GetComponent<NetworkedProjectileComponent>();
@@ -656,7 +648,7 @@ public class NetManager : MonoBehaviour
                 projComp.NetID = spawnNetProj.bullet.id;
                 projComp.clientOwner = true;    // This bullet is owned by THIS client
                 projComp.netMan = this;
-                ourProjectiles.Add(projComp);
+                ourProjectiles.Add(spawnNetProj.bullet.id, projComp);
             }
             // This is a bullet that the other client shot, spawn it in a seperate container so that we can keep track of it
             else
@@ -668,37 +660,25 @@ public class NetManager : MonoBehaviour
                 projComp.NetID = spawnNetProj.bullet.id;
                 projComp.clientOwner = false;    // This bullet is owned by a DIFFERENT client
                 projComp.netMan = this;
-                otherProjectiles.Add(projComp);
+                otherProjectiles.Add(spawnNetProj.bullet.id, projComp);
             }
 
             spawn_bullet = false;
         }
         if (delete_bullet)
         {
-            // Search through our bullet list and delete it.
             if (PlayerID == delProj.playerId)
             {
-                foreach (var b in ourProjectiles)
-                {
-                    if (b.NetID == delProj.bullet.id)
-                    {
-                        Destroy(b.gameObject);
-                        ourProjectiles.Remove(b);
-                        break;
-                    }
+                if (ourProjectiles.ContainsKey(delProj.bullet.id)) {    // Always good practice
+                    Destroy(ourProjectiles[delProj.bullet.id].gameObject);
+                    ourProjectiles.Remove(delProj.bullet.id);
                 }
             }
-            // Search through the other bullet list and delete it.
             else
             {
-                foreach (var b in otherProjectiles)
-                {
-                    if (b.NetID == delProj.bullet.id)
-                    {
-                        Destroy(b.gameObject);
-                        otherProjectiles.Remove(b);
-                        break;
-                    }
+                if (otherProjectiles.ContainsKey(delProj.bullet.id)) {  // Always good practice
+                    Destroy(otherProjectiles[delProj.bullet.id].gameObject);
+                    otherProjectiles.Remove(delProj.bullet.id);
                 }
             }
 
@@ -707,9 +687,6 @@ public class NetManager : MonoBehaviour
     }
     void SpawnAsteroid()
     {
-        // TODO: Refactor bullets spawning after server sends msg back, otherwise spawning wont be in sync.
-        // Not really an issue with this small scale game but its bad practice to be doing that.
-        //Debug.Log("Spawning asteroid...");
         NetUtils.SVector2 worldP = new NetUtils.SVector2();
         worldP.X = UnityEngine.Random.Range(-5f, +5f);
         worldP.Y = +10f;
@@ -736,66 +713,48 @@ public class NetManager : MonoBehaviour
 
             if (spawnNetAsteroid.playerId == PlayerID)
             {
-                ourAsteroids.Add(netAsteroid);
+                ourAsteroids.Add(spawnNetAsteroid.asteroid.id, netAsteroid);
             }
             else
             {
-                otherAsteroids.Add(netAsteroid);
+                otherAsteroids.Add(spawnNetAsteroid.asteroid.id, netAsteroid);
             }
             spawn_asteroid = false;
         }
         if (delete_asteroid)
         {
-            Debug.Log("Recv delete asteroid cmd signifier at index: " + delNetAsteroid.asteroid.id);
             // Delete our projectile
             if (delNetAsteroid.deletionFlags == NetUtils.DeletionFlags.BY_PLAYER)
             {
                 if (PlayerID == delNetAsteroid.playerId)
                 {
-                    foreach (var a in ourAsteroids)
-                    {
-                        if (delNetAsteroid.netId == a.NetID)
-                        {
-                            Destroy(a.gameObject);
-                            ourAsteroids.Remove(a);
-                            break;
-                        }
+                    if (ourAsteroids.ContainsKey(delNetAsteroid.netId)) {
+                        Debug.Log("(our asteroids) Deleting at key: " + delNetAsteroid.netId);
+                        Destroy(ourAsteroids[delNetAsteroid.netId].gameObject);
+                        ourAsteroids.Remove(delNetAsteroid.netId);
                     }
                 }
                 // Delete other projectile
                 else
                 {
-                    foreach (var a in otherAsteroids)
-                    {
-                        if (delNetAsteroid.netId == a.NetID)
-                        {
-                            Destroy(a.gameObject);
-                            otherAsteroids.Remove(a);
-                            break;
-                        }
+                    if (otherAsteroids.ContainsKey(delNetAsteroid.netId)) {
+                        Debug.Log("(other asteroids) Deleting at key: " + delNetAsteroid.netId);
+                        Destroy(otherAsteroids[delNetAsteroid.netId].gameObject);
+                        otherAsteroids.Remove(delNetAsteroid.netId);
                     }
                 }
             }
             else if (delNetAsteroid.deletionFlags == NetUtils.DeletionFlags.BY_CLIENT)
             {
-                foreach (var a in ourAsteroids)
-                {
-                    if (delNetAsteroid.netId == a.NetID)
-                    {
-                        Destroy(a.gameObject);
-                        ourAsteroids.Remove(a);
-                        break;
-                    }
+                if (ourAsteroids.ContainsKey(delNetAsteroid.netId)) {
+                    Destroy(ourAsteroids[delNetAsteroid.netId].gameObject);
+                    ourAsteroids.Remove(delNetAsteroid.netId);
                 }
-                foreach (var a in otherAsteroids)
-                {
-                    if (delNetAsteroid.netId == a.NetID)
-                    {
-                        Destroy(a.gameObject);
-                        otherAsteroids.Remove(a);
-                        break;
-                    }
+                else if (otherAsteroids.ContainsKey(delNetAsteroid.netId)) {
+                    Destroy(otherAsteroids[delNetAsteroid.netId].gameObject);
+                    otherAsteroids.Remove(delNetAsteroid.netId);
                 }
+
             }
             
             
@@ -807,8 +766,7 @@ public class NetManager : MonoBehaviour
     {
         if (user_authen_resp)
         {
-            Debug.Log("Server response: " + createAccountResponse.response);
-
+            Debug.Log("Server authentication status: " + createAccountResponse.response);
             if (createAccountResponse.response == NetUtils.AccountResponse.CREATE_ACCOUNT_SUCCESS)
                 MenuController.Instance.SetServerResponseStatus("Server response: Created account successfully!", Color.green);
             else if (createAccountResponse.response == NetUtils.AccountResponse.CREATE_ACCOUNT_USER_TAKEN)
@@ -831,6 +789,11 @@ public class NetManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        // Majority tasks that involve modifying Mono Behaviour Objects can't be modified in OnMsgRecv()
+        // Because OnMsgRecv() is a Asynchronious function
+        // This may look inefficient at first, until you realize that these events only happen under the condition of
+        // If match_found, if del_bullet, if del_asteroid, etc. They're only called once.
+        // Majority of OnMsgRecv() tasks have to be done here since they modify Mono Behaviour objects
         HandleMatchmaking();
         DropClients();   
         UpdateClients();
