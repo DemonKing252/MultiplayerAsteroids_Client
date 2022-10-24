@@ -254,10 +254,8 @@ public class NetManager : MonoBehaviour
     private NetClient player2 = null;
 
     // int represents Network ID
-    private Dictionary<int, NetworkedProjectileComponent> ourProjectiles = new Dictionary<int, NetworkedProjectileComponent>();
-    //private Dictionary<int, NetworkedProjectileComponent> otherProjectiles = new Dictionary<int, NetworkedProjectileComponent>();
-    private Dictionary<int, NetAsteroid> ourAsteroids = new Dictionary<int, NetAsteroid>();
-    //private Dictionary<int, NetAsteroid> otherAsteroids = new Dictionary<int, NetAsteroid>();
+    private Dictionary<int, NetworkedProjectileComponent> netProjectiles = new Dictionary<int, NetworkedProjectileComponent>();
+    private Dictionary<int, NetAsteroid> netAsteroids = new Dictionary<int, NetAsteroid>();
 
     // Prefabs
     public GameObject bulletPrefab;
@@ -596,15 +594,15 @@ public class NetManager : MonoBehaviour
             projComp.clientOwner = true;    // This bullet is owned by THIS client
             projComp.netMan = this;
             projComp.OwnedByThisClient = spawnNetProj.ownedByThisClient;
-            ourProjectiles.Add(spawnNetProj.bullet.id, projComp);
+            netProjectiles.Add(spawnNetProj.bullet.id, projComp);
 
             spawn_bullet = false;
         }
         if (delete_bullet)
         {
-            if (ourProjectiles.ContainsKey(delProj.bullet.id)) {    // Always good practice
-                Destroy(ourProjectiles[delProj.bullet.id].gameObject);
-                ourProjectiles.Remove(delProj.bullet.id);
+            if (netProjectiles.ContainsKey(delProj.bullet.id)) {    // Always good practice
+                Destroy(netProjectiles[delProj.bullet.id].gameObject);
+                netProjectiles.Remove(delProj.bullet.id);
             }
             delete_bullet = false;
         }
@@ -636,16 +634,16 @@ public class NetManager : MonoBehaviour
             netAsteroid.Vel = new Vector3(spawnNetAsteroid.asteroid.vel.X, spawnNetAsteroid.asteroid.vel.Y);
             netAsteroid.OwnedByThisClient = spawnNetAsteroid.ownedByThisClient;
             netAsteroid.netMan = this;
-            ourAsteroids.Add(spawnNetAsteroid.asteroid.id, netAsteroid);
+            netAsteroids.Add(spawnNetAsteroid.asteroid.id, netAsteroid);
 
             spawn_asteroid = false;
         }
         if (delete_asteroid)
         {
-            if (ourAsteroids.ContainsKey(delNetAsteroid.netId)) {
+            if (netAsteroids.ContainsKey(delNetAsteroid.netId)) {
                 Debug.Log("(our asteroids) Deleting at key: " + delNetAsteroid.netId);
-                Destroy(ourAsteroids[delNetAsteroid.netId].gameObject);
-                ourAsteroids.Remove(delNetAsteroid.netId);
+                Destroy(netAsteroids[delNetAsteroid.netId].gameObject);
+                netAsteroids.Remove(delNetAsteroid.netId);
             }
 
             delete_asteroid = false;
