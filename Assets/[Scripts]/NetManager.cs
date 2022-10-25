@@ -31,6 +31,8 @@ namespace NetUtils
         TO_SERVER_DEL_ASTEROID = 14,
         TO_CLIENT_DEL_ASTEROID = 15,
 
+        TO_CLIENT_SERVER_OFFLINE = 16,
+
         TO_SERVER_USER_AUTHENTICATE       = 50,
         TO_SERVER_LOGIN                   = 51,
         TO_CLIENT_CREATE_ACCOUNT_RESPONSE = 52,
@@ -290,6 +292,7 @@ public class NetManager : MonoBehaviour
     private bool delete_asteroid = false;
     private bool user_authen_resp = false;
     private bool login_Response = false;
+    private bool server_offline = false;
 
     // Server ip and port
     public string ec2_ip = "52.14.46.199";
@@ -308,6 +311,7 @@ public class NetManager : MonoBehaviour
         MenuController.Instance.onStartMatchmaking += OnStartMatchmaking;
         MenuController.Instance.onCreateAccount += OnCreateAccount;
         MenuController.Instance.onLogin += OnLogin;
+        MenuController.Instance.onShutdownNetwork += OnDisconnectFromServer;
     }
     public void InitUDPClient()
     {
@@ -332,7 +336,7 @@ public class NetManager : MonoBehaviour
         if (!connected)
         {
             Debug.Log("Could not connect to host!");
-            MenuController.Instance.OnConnectionTimedOut();
+            MenuController.Instance.OnConnectionTimedOut("Connection timed out.");
         }
     }
 
@@ -427,6 +431,9 @@ public class NetManager : MonoBehaviour
                 createAccountResponse = LoadJson<ServerToClient.CreateAccountResponse>(bytes);                
                 user_authen_resp = true;
                 break;
+            case NetUtils.CommandSignifiers.TO_CLIENT_SERVER_OFFLINE:
+                server_offline = true;
+                break;
         }
 
         sock.BeginReceive(new AsyncCallback(OnMessageRecv), sock);
@@ -500,6 +507,7 @@ public class NetManager : MonoBehaviour
         MenuController.Instance.onStartMatchmaking -= OnStartMatchmaking;
         MenuController.Instance.onCreateAccount -= OnCreateAccount;
         MenuController.Instance.onLogin -= OnLogin;
+        MenuController.Instance.onShutdownNetwork -= OnDisconnectFromServer;
 
         // If playing singleplayer, were not shutting down the network
         if (!connected)
@@ -511,6 +519,20 @@ public class NetManager : MonoBehaviour
         drop.playerId = PlayerID;
         drop.user = user_name;
         SendToServer(drop);
+    }
+
+    private void OnDisconnectFromServer()
+    {
+        ClientToServer.DropClient drop = new ClientToServer.DropClient();
+        drop.commandSignifier = NetUtils.CommandSignifiers.TO_SERVER_DROP_CLIENT;
+        drop.netId = NetID;
+        drop.playerId = PlayerID;
+        drop.user = user_name;
+        SendToServer(drop);
+
+        ShutdownNetwork();
+        MenuController.Instance.SetServerResponseStatus("", Color.green);
+        MenuController.Instance.ChangeGameState(GameStates.Multiplayer);    
     }
 
     // This also handles adding clients
@@ -565,8 +587,17 @@ public class NetManager : MonoBehaviour
             Destroy(player1.gameObject);
             Destroy(player2.gameObject);
             player1 = player2 = null;
-
             PlayerID = -1;
+
+            foreach(var b in netProjectiles) {
+                Destroy(b.Value.gameObject);
+            }            
+            foreach(var a in netAsteroids) {
+                Destroy(a.Value.gameObject);
+            }
+            netProjectiles.Clear();
+            netAsteroids.Clear();
+
             Debug.Log("Client left the session, returning to matchmaking menu...");
 
             var requestMatch = new ClientToServer.RequestMatch();
@@ -667,9 +698,57 @@ public class NetManager : MonoBehaviour
             else if (createAccountResponse.response == NetUtils.AccountResponse.LOGIN_SUCCESS)
             {
                 user_name = createAccountResponse.user;
-                MenuController.Instance.ChangeGameState(GameStates.Matchmaking);          
+                MenuController.Instance.ChangeGameState(GameStates.Matchmaking);
             }
             user_authen_resp = false;
+        }
+    }
+    void ShutdownNetwork() {
+
+        // All Async tasks will be turned off
+        match_made       =
+        update_pos       =
+        drop_client      =
+        spawn_bullet     =
+        delete_bullet    =
+        spawn_asteroid   =
+        delete_asteroid  =
+        user_authen_resp =
+        login_Response   =
+        server_offline   =
+        connected        = false;
+
+        // Destroy players, all projectiles and asteroids
+        if (player1 != null && player2 != null)
+        {
+            Destroy(player1.gameObject);
+            Destroy(player2.gameObject);
+            player1 = player2 = null;
+        }
+        foreach (var b in netProjectiles)
+        {
+            Destroy(b.Value.gameObject);
+        }
+        foreach (var a in netAsteroids)
+        {
+            Destroy(a.Value.gameObject);
+        }
+        netProjectiles.Clear();
+        netAsteroids.Clear();
+
+        // Set Network ID's back to their default value
+        NetID = -1;
+        PlayerID = -1;
+
+        // Close down the UdpClient
+        client.Dispose();
+    }
+
+    void HandleConnectionLost() {
+        if (server_offline) {
+            ShutdownNetwork();
+            MenuController.Instance.OnConnectionTimedOut("Lost connection to host.");
+            MenuController.Instance.ChangeGameState(GameStates.Multiplayer);
         }
     }
 
@@ -687,5 +766,6 @@ public class NetManager : MonoBehaviour
         SpawnAndDeleteNetBullets();
         SpawnAndDeleteNetAsteroids();
         AccountHandling();
+        HandleConnectionLost();
     }
 }

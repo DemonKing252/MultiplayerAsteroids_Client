@@ -25,6 +25,7 @@ public class MenuController : MonoBehaviour
     [SerializeField] private Button connect;
 
     [SerializeField] private Button start_matchmaking;
+    [SerializeField] private Button disconnectBtn;
 
     [SerializeField] private Toggle readyUp;    // maybe
 
@@ -65,6 +66,7 @@ public class MenuController : MonoBehaviour
     public delegate void OnStartmatchmakingEvent();
     public delegate void OnCreateAccountEvent(string user, string pass);
     public delegate void OnLoginEvent(string user, string pass);
+    public delegate void OnShutdownNetwork();
 
     public event OnReadyUpEvent onConnectToHost;
     public event OnHostIPChangedEvent onHostIPChanged;
@@ -72,6 +74,7 @@ public class MenuController : MonoBehaviour
     public event OnStartmatchmakingEvent onStartMatchmaking;
     public event OnCreateAccountEvent onCreateAccount;
     public event OnLoginEvent onLogin;
+    public event OnShutdownNetwork onShutdownNetwork;
 
     private void Awake()
     {
@@ -98,6 +101,7 @@ public class MenuController : MonoBehaviour
 
         createAccountBtn.onClick.AddListener(() => OnCreateAccount());
         loginBtn.onClick.AddListener(() => OnLogin());
+        disconnectBtn.onClick.AddListener(() => onShutdownNetwork?.Invoke());
 
         ChangeGameState(GameStates.MainMenu);
     }
@@ -122,7 +126,8 @@ public class MenuController : MonoBehaviour
     public void OnConnect()
     {
         Time.timeScale = 0f;
-        onConnectToHost?.Invoke();        
+        connectionTimedOutText.gameObject.SetActive(false);
+        onConnectToHost?.Invoke();
     }
     public void OnReadyUp(bool ready)
     {
@@ -198,7 +203,7 @@ public class MenuController : MonoBehaviour
         turnOn.gameObject.SetActive(true);
 
     }
-    public void OnConnectionTimedOut()
+    public void OnConnectionTimedOut(string text)
     {
         connectionTimedOutText.gameObject.SetActive(true);
     }

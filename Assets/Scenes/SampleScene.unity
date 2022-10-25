@@ -1161,7 +1161,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &138250229
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4364,7 +4364,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: '<color=green>Server Response: Text goes here...</color>'
+  m_text: <color=green></color>
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: ebe5a3f431b89ac44b46a19b17380ef2, type: 2}
   m_sharedMaterial: {fileID: 7054537097164980355, guid: ebe5a3f431b89ac44b46a19b17380ef2, type: 2}
@@ -5195,6 +5195,7 @@ MonoBehaviour:
   quit: {fileID: 1608141725}
   connect: {fileID: 1717299709}
   start_matchmaking: {fileID: 2003905578}
+  disconnectBtn: {fileID: 2132742026}
   readyUp: {fileID: 159138056}
   createAccountBtn: {fileID: 1360951290}
   loginBtn: {fileID: 815883232}
@@ -11725,10 +11726,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a9c4c9b29b8c9c4aa786f4ceeedc853, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ourProjectiles: []
-  otherProjectiles: []
-  ourAsteroids: []
-  otherAsteroids: []
   bulletPrefab: {fileID: 1039828638130534438, guid: 630cfb0c2a832f64db950cd488f426d4, type: 3}
   playerPrefab: {fileID: 6653113066094095336, guid: 872a1ffdcb7a5eb448a70eefe4f52165, type: 3}
   asteroidPrefab: {fileID: 9089001722903409152, guid: 216ce5e780f22354091ade5b0d4c01dc, type: 3}
@@ -11750,6 +11747,7 @@ MonoBehaviour:
   spawnNetProj:
     commandSignifier: 0
     playerId: 0
+    ownedByThisClient: 0
     bullet:
       id: -1
       pos:
@@ -11780,6 +11778,7 @@ MonoBehaviour:
     commandSignifier: 0
     netId: 0
     playerId: 0
+    ownedByThisClient: 0
     asteroid:
       id: -1
       pos:
@@ -11792,7 +11791,6 @@ MonoBehaviour:
     commandSignifier: 0
     netId: 0
     playerId: 0
-    deletionFlags: 0
     asteroid:
       id: -1
       pos:
@@ -11806,13 +11804,6 @@ MonoBehaviour:
     response: 0
     user: 
     pass: 
-  NetID: -1
-  PlayerID: -1
-  player1: {fileID: 0}
-  player2: {fileID: 0}
-  ec2_ip: 52.14.46.199
-  port: 12345
-  ec2_connect: 0
   positionUpdate:
     commandSignifier: 0
     pos:
@@ -11820,6 +11811,12 @@ MonoBehaviour:
       y: 0.00
     clientId: 0
     playerId: 0
+  NetID: -1
+  PlayerID: -1
+  ec2_ip: 52.14.46.199
+  port: 12345
+  ec2_connect: 0
+  user_name: 
 --- !u!4 &1987229241
 Transform:
   m_ObjectHideFlags: 0
@@ -13112,7 +13109,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &2110367303
 MonoBehaviour:
   m_ObjectHideFlags: 0
