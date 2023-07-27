@@ -37,8 +37,11 @@ namespace NetUtils
         TO_SERVER_LOGIN                   = 51,
         TO_CLIENT_CREATE_ACCOUNT_RESPONSE = 52,
 
-        MATCH_MADE = 100,
-        REROLL_MATCH = 101,
+        TO_CLIENT_MATCH_MADE = 100,
+        TO_CLIENT_REROLL_MATCH = 101,
+        TO_CLIENT_START_MATCH = 102,
+
+        TO_SERVER_READY_UP = 150
     }
     public enum AccountResponse
     {
@@ -120,6 +123,14 @@ namespace ClientToServer
     {
         public int clientId;
     }
+    [Serializable]
+    public class PlayerReadyUp : NetUtils.NetworkHeader
+    {
+        public int NetID;
+        public int PlayerID;
+        public bool isReady;
+    }
+
     [Serializable]
     public class PositionUpdate : NetUtils.NetworkHeader
     {
@@ -293,12 +304,13 @@ public class NetManager : MonoBehaviour
     private bool user_authen_resp = false;
     private bool login_Response = false;
     private bool server_offline = false;
+    private bool start_up_match = false;
 
     // Server ip and port
     public string ec2_ip = "52.14.46.199";
     public string port = "12345";
     
-    public bool ec2_connect = true; // for debugging, easier to test locally when debugging code
+    public bool connect_locally = true; // for debugging, easier to test locally when debugging code
     public string user_name = "";   // waiting on server response
     private bool connected = false;
     private bool alreadyConnected = true;
@@ -312,12 +324,16 @@ public class NetManager : MonoBehaviour
         MenuController.Instance.onCreateAccount += OnCreateAccount;
         MenuController.Instance.onLogin += OnLogin;
         MenuController.Instance.onShutdownNetwork += OnDisconnectFromServer;
+        MenuController.Instance.onPlayerReadyUp += OnPlayerReadyUp;
     }
     public void InitUDPClient()
     {
         client = new UdpClient();
-        //client.Connect(ec2_ip, int.Parse(port));
-        client.Connect("127.0.0.1", 5491);
+        
+        if ( connect_locally )
+            client.Connect("127.0.0.1", 5491);
+        else
+            client.Connect(ec2_ip, int.Parse(port));
 
         ClientToServer.Handshake message = new ClientToServer.Handshake();
         message.commandSignifier = NetUtils.CommandSignifiers.TOSERVER_HANDSHAKE;
@@ -379,6 +395,18 @@ public class NetManager : MonoBehaviour
         SendToServer(logintoAccount);
     }
 
+    public void OnPlayerReadyUp(bool ready)
+    {
+        Debug.Log("player selected ready up");
+
+        var readyUp = new ClientToServer.PlayerReadyUp();
+        readyUp.commandSignifier = NetUtils.CommandSignifiers.TO_SERVER_READY_UP;
+        readyUp.NetID = NetID;
+        readyUp.PlayerID = PlayerID;
+        readyUp.isReady = ready;
+        SendToServer(readyUp);
+    }
+
 
     private void OnMessageRecv(IAsyncResult result)
     {
@@ -397,11 +425,16 @@ public class NetManager : MonoBehaviour
                 connected = true;
                 alreadyConnected = false;
                 break;
-            case NetUtils.CommandSignifiers.MATCH_MADE:
+            case NetUtils.CommandSignifiers.TO_CLIENT_MATCH_MADE:
                 match = LoadJson<ServerToClient.Matchmade>(bytes);
                 PlayerID = match.player;
-                Debug.Log(match.message);
+                //Debug.Log(match.message);
                 match_made = true;
+                break;
+            case NetUtils.CommandSignifiers.TO_CLIENT_START_MATCH:
+                match = LoadJson<ServerToClient.Matchmade>(bytes);
+
+                start_up_match = true;
                 break;
             case NetUtils.CommandSignifiers.TO_CLIENT_POS_UPDATE:
                 posUpdate = LoadJson<ServerToClient.PositionUpdate>(bytes);
@@ -545,8 +578,20 @@ public class NetManager : MonoBehaviour
         }
         if (match_made)
         {
+
+            Debug.Log("Match has been made");
+
+            MenuController.Instance.match_found_text.gameObject.SetActive(true);
+
+            
+            match_made = false;
+        }
+        if (start_up_match)
+        {
             Time.timeScale = 1f;
+            MenuController.Instance.match_found_text.gameObject.SetActive(false);
             MenuController.Instance.ChangeGameState(GameStates.MatchmakingGame);
+
             for (int i = 0; i < 2; i++)
             {
                 GameObject go = Instantiate(playerPrefab, new Vector3(i == 0 ? -3f : +3f, -3f, 0f), Quaternion.identity);
@@ -557,12 +602,12 @@ public class NetManager : MonoBehaviour
                 else
                     player2 = client;
             }
-
+            
             // Only the host will spawn the asteroids
             if (PlayerID == 1)
                 InvokeRepeating(nameof(SpawnAsteroid), 0f, 2f);
-
-            match_made = false;
+            
+            start_up_match = false;
         }
     }
     void UpdateClients()
@@ -601,10 +646,12 @@ public class NetManager : MonoBehaviour
             Debug.Log("Client left the session, returning to matchmaking menu...");
 
             var requestMatch = new ClientToServer.RequestMatch();
-            requestMatch.commandSignifier = NetUtils.CommandSignifiers.REROLL_MATCH;
+            requestMatch.commandSignifier = NetUtils.CommandSignifiers.TO_CLIENT_REROLL_MATCH;
             requestMatch.clientId = NetID;
             SendToServer(requestMatch);
             MenuController.Instance.ChangeGameState(GameStates.Matchmaking);
+            MenuController.Instance.readyUp.isOn = false;
+
             MenuController.Instance.ClientLeftMatchWarningText.gameObject.SetActive(true);
             drop_client = false;
         }

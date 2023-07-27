@@ -27,7 +27,7 @@ public class MenuController : MonoBehaviour
     [SerializeField] private Button start_matchmaking;
     [SerializeField] private Button disconnectBtn;
 
-    [SerializeField] private Toggle readyUp;    // maybe
+    [SerializeField] public Toggle readyUp;    // maybe
 
 
     [SerializeField] private Button createAccountBtn;
@@ -50,6 +50,7 @@ public class MenuController : MonoBehaviour
     [SerializeField] private TMPro.TMP_Text connectionTimedOutText;
     [SerializeField] private TMPro.TMP_Text clientLeftMatchWarningText;
     [SerializeField] private TMPro.TMP_Text server_response_status_text;
+    [SerializeField] public TMPro.TMP_Text match_found_text;
     public TMPro.TMP_Text ClientLeftMatchWarningText => clientLeftMatchWarningText;
 
     private GameStates gameState = GameStates.MainMenu;
@@ -67,6 +68,7 @@ public class MenuController : MonoBehaviour
     public delegate void OnCreateAccountEvent(string user, string pass);
     public delegate void OnLoginEvent(string user, string pass);
     public delegate void OnShutdownNetwork();
+    public delegate void OnPlayerReadyUp(bool ready);
 
     public event OnReadyUpEvent onConnectToHost;
     public event OnHostIPChangedEvent onHostIPChanged;
@@ -75,6 +77,7 @@ public class MenuController : MonoBehaviour
     public event OnCreateAccountEvent onCreateAccount;
     public event OnLoginEvent onLogin;
     public event OnShutdownNetwork onShutdownNetwork;
+    public event OnPlayerReadyUp onPlayerReadyUp;
 
     private void Awake()
     {
@@ -131,12 +134,9 @@ public class MenuController : MonoBehaviour
     }
     public void OnReadyUp(bool ready)
     {
-        if (ready)
-        {
-            // Code here.
-            Time.timeScale = 1f;
-            ChangeGameState(GameStates.MatchmakingGame);
-        }
+        // Code here.
+        Time.timeScale = 1f;
+        onPlayerReadyUp?.Invoke(ready);
     }
     public void OnHostIPChanged(string ip)
     {
@@ -171,9 +171,11 @@ public class MenuController : MonoBehaviour
 
     public void OnStartMatchmaking()
     {
+        print("start matchmaking?");
         clientLeftMatchWarningText.gameObject.SetActive(false);
         onStartMatchmaking?.Invoke();
     }
+    
 
     // ------------------------------------------------------------------
 
