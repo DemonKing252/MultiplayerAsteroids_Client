@@ -21,6 +21,13 @@ public class NetClient : MonoBehaviour
     void Start()
     {
         netManager = FindObjectOfType<NetManager>();
+        netManager.NetworkPlayTime = 0f;    // Re roll match, this time gets reset
+    }
+
+    void FixedUpdate()
+    {
+        if (NetID == netManager.NetID)
+            netManager.NetworkPlayTime += Time.fixedDeltaTime;
     }
 
     // Update is called once per frame

@@ -51,6 +51,8 @@ public class MenuController : MonoBehaviour
     [SerializeField] private TMPro.TMP_Text clientLeftMatchWarningText;
     [SerializeField] private TMPro.TMP_Text server_response_status_text;
     [SerializeField] public TMPro.TMP_Text match_found_text;
+    [SerializeField] private TMPro.TMP_Text scoreText;
+    [SerializeField] private TMPro.TMP_Text highScoreText;
     public TMPro.TMP_Text ClientLeftMatchWarningText => clientLeftMatchWarningText;
 
     private GameStates gameState = GameStates.MainMenu;
@@ -61,7 +63,7 @@ public class MenuController : MonoBehaviour
     public static MenuController Instance => instance;
 
     // Delegates go here.
-    public delegate void OnReadyUpEvent();    
+    public delegate void OnReadyUpEvent();
     public delegate void OnHostIPChangedEvent(string ip);
     public delegate void OnHostPortChangedEvent(string port);
     public delegate void OnStartmatchmakingEvent();
@@ -78,6 +80,26 @@ public class MenuController : MonoBehaviour
     public event OnLoginEvent onLogin;
     public event OnShutdownNetwork onShutdownNetwork;
     public event OnPlayerReadyUp onPlayerReadyUp;
+
+    private int highScore;
+    public int HighScore { get { return highScore; } set { highScore = value; highScoreText.text = "High Score: " + value.ToString(); } }
+    private int score = 0;
+    public int Score 
+    { 
+        get { 
+            return score; 
+        } 
+        set { 
+            score = value; 
+            scoreText.text = "Score: " + score.ToString(); 
+
+            if (score > highScore)
+            {
+                highScore = value;
+                highScoreText.text = "High Score: " + score.ToString();
+            }
+        } 
+    }
 
     private void Awake()
     {

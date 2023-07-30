@@ -44,9 +44,11 @@ public class NetworkedProjectileComponent : MonoBehaviour
     }
     private void OnTriggerEnter2D(Collider2D collision)
     {
+        // Keep an eye on this => OwnedByThisClient
         // If owned by this client, delete the bullet on the Network.
-        if (clientOwner && collision.gameObject.CompareTag("Asteroid"))
+        if (OwnedByThisClient && collision.gameObject.CompareTag("Asteroid"))
         {
+            MenuController.Instance.Score++;
             netMan.DeleteAsteroidOnNetwork(collision.GetComponent<NetAsteroid>());
         }
     }

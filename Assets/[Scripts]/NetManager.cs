@@ -122,6 +122,9 @@ namespace ClientToServer
     public class RequestMatch : NetUtils.NetworkHeader
     {
         public int clientId;
+        public string networkUpTime;
+        public int highScore;
+        public string user;
     }
     [Serializable]
     public class PlayerReadyUp : NetUtils.NetworkHeader
@@ -129,6 +132,7 @@ namespace ClientToServer
         public int NetID;
         public int PlayerID;
         public bool isReady;
+        public string user;
     }
 
     [Serializable]
@@ -145,6 +149,8 @@ namespace ClientToServer
         public int netId;
         public int playerId;
         public string user;
+        public string networkUpTime;
+        public int highScore;
     }
     [Serializable]
     public class SpawnNetProjectile : NetUtils.NetworkHeader
@@ -257,6 +263,8 @@ namespace ServerToClient
         public NetUtils.AccountResponse response;
         public string user;
         public string pass;
+        public int highScore;
+        public float timePlayed;
     }
 }
 
@@ -305,6 +313,8 @@ public class NetManager : MonoBehaviour
     private bool login_Response = false;
     private bool server_offline = false;
     private bool start_up_match = false;
+    private float networkPlayTime = 0f;
+    public float NetworkPlayTime { get { return networkPlayTime; } set { networkPlayTime = value; } }
 
     // Server ip and port
     public string ec2_ip = "52.14.46.199";
@@ -370,6 +380,8 @@ public class NetManager : MonoBehaviour
         var startMatchmaking = new ClientToServer.RequestMatch();
         startMatchmaking.commandSignifier = NetUtils.CommandSignifiers.START_MATCHMAKING;
         startMatchmaking.clientId = NetID;
+        startMatchmaking.user = "unknown";
+
         SendToServer(startMatchmaking);
         MenuController.Instance.ChangeGameState(GameStates.WaitingForMatch);
     }
@@ -404,6 +416,7 @@ public class NetManager : MonoBehaviour
         readyUp.NetID = NetID;
         readyUp.PlayerID = PlayerID;
         readyUp.isReady = ready;
+        readyUp.user = user_name;
         SendToServer(readyUp);
     }
 
@@ -551,6 +564,9 @@ public class NetManager : MonoBehaviour
         drop.netId = NetID;
         drop.playerId = PlayerID;
         drop.user = user_name;
+        drop.networkUpTime = networkPlayTime.ToString("F1");
+        drop.highScore = MenuController.Instance.HighScore;
+
         SendToServer(drop);
     }
 
@@ -648,7 +664,12 @@ public class NetManager : MonoBehaviour
             var requestMatch = new ClientToServer.RequestMatch();
             requestMatch.commandSignifier = NetUtils.CommandSignifiers.TO_CLIENT_REROLL_MATCH;
             requestMatch.clientId = NetID;
+            requestMatch.networkUpTime = networkPlayTime.ToString("F1");
+            requestMatch.user = user_name;
+            requestMatch.highScore = MenuController.Instance.HighScore;
             SendToServer(requestMatch);
+
+
             MenuController.Instance.ChangeGameState(GameStates.Matchmaking);
             MenuController.Instance.readyUp.isOn = false;
 
@@ -746,6 +767,7 @@ public class NetManager : MonoBehaviour
             {
                 user_name = createAccountResponse.user;
                 MenuController.Instance.ChangeGameState(GameStates.Matchmaking);
+                MenuController.Instance.HighScore = createAccountResponse.highScore;
             }
             user_authen_resp = false;
         }
